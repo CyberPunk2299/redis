@@ -42,7 +42,7 @@
 list *listCreate(void)
 {
     struct list *list;
-
+    //申请内存失败
     if ((list = zmalloc(sizeof(*list))) == NULL)
         return NULL;
     list->head = list->tail = NULL;
@@ -54,6 +54,7 @@ list *listCreate(void)
 }
 
 /* Remove all the elements from the list without destroying the list itself. */
+//移出所有节点，然而不释放结构本身
 void listEmpty(list *list)
 {
     unsigned long len;
