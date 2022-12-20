@@ -6,6 +6,10 @@
  * the memory used by the ziplist, the actual complexity is related to the
  * amount of memory used by the ziplist.
  *
+ * ziplist是一个特殊编码的双向链接列表以非常节省内存。它存储字符串和整数值，其中整数被编码为实际整数，而不是一系列字符。
+ * 它允许在列表的任一侧进行推送和弹出操作在O（1）时间内。
+ * 但是，因为每个操作都需要重新分配ziplist使用的内存，实际复杂性与ziplist使用的内存量有关。
+ *
  * ----------------------------------------------------------------------------
  *
  * ZIPLIST OVERALL LAYOUT
@@ -22,17 +26,25 @@
  * This value needs to be stored to be able to resize the entire structure
  * without the need to traverse it first.
  *
+ * zlbytes，存储ziplist占用的字节数。存储此值以供调整整个结构时无需遍历。
+ *
  * <uint32_t zltail> is the offset to the last entry in the list. This allows
  * a pop operation on the far side of the list without the need for full
  * traversal.
+ *
+ * zltail是最后一个entry的偏移量。以便执行最远端的pop操作时无需整个遍历。
  *
  * <uint16_t zllen> is the number of entries. When there are more than
  * 2^16-2 entries, this value is set to 2^16-1 and we need to traverse the
  * entire list to know how many items it holds.
  *
+ * zllen，entry的数量。超过2^16-2个时，需要遍历整个list来得到包含多少项。
+ *
  * <uint8_t zlend> is a special entry representing the end of the ziplist.
  * Is encoded as a single byte equal to 255. No other normal entry starts
  * with a byte set to the value of 255.
+ *
+ * zlend，一个单独的字节255，表示ziplist的结束。
  *
  * ZIPLIST ENTRIES
  * ===============
@@ -282,17 +294,21 @@ int ziplistSafeToAdd(unsigned char* zl, size_t add) {
  * Note that this is not how the data is actually encoded, is just what we
  * get filled by a function in order to operate more easily. */
 typedef struct zlentry {
+    //记录前一个节点的长度占据需要使用的字节大小。
     unsigned int prevrawlensize; /* Bytes used to encode the previous entry len*/
+    //前一个节点的长度
     unsigned int prevrawlen;     /* Previous entry len. */
+    //当前节点长度占据需要使用的字节大小
     unsigned int lensize;        /* Bytes used to encode this entry type/len.
                                     For example strings have a 1, 2 or 5 bytes
-                                    header. Integers always use a single byte.*/
+    //当前节点长度                                header. Integers always use a single byte.*/
     unsigned int len;            /* Bytes used to represent the actual entry.
                                     For strings this is just the string length
                                     while for integers it is 1, 2, 3, 4, 8 or
                                     0 (for 4 bit immediate) depending on the
                                     number range. */
     unsigned int headersize;     /* prevrawlensize + lensize. */
+    //编码格式
     unsigned char encoding;      /* Set to ZIP_STR_* or ZIP_INT_* depending on
                                     the entry encoding. However for 4 bits
                                     immediate integers this can assume a range
@@ -710,7 +726,7 @@ static inline void zipAssertValidEntry(unsigned char* zl, size_t zlbytes, unsign
 
 /* Create a new empty ziplist. */
 unsigned char *ziplistNew(void) {
-    unsigned int bytes = ZIPLIST_HEADER_SIZE+ZIPLIST_END_SIZE;
+    unsigned int bytes = ZIPLIST_HEADER_SIZE+ZIPLIST_END_SIZE;//计算总长度，头部长度+尾部长度
     unsigned char *zl = zmalloc(bytes);
     ZIPLIST_BYTES(zl) = intrev32ifbe(bytes);
     ZIPLIST_TAIL_OFFSET(zl) = intrev32ifbe(ZIPLIST_HEADER_SIZE);
